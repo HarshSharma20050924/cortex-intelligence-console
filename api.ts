@@ -1,10 +1,23 @@
+
 import { supabase } from './lib/supabase';
 
-const API_URL = 'http://localhost:8000';
+// Use relative path for Vercel deployment (serverless functions)
+// For local development, this falls back to localhost if not proxied
+const getApiUrl = () => {
+  if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
+     return 'http://localhost:8000'; 
+  }
+  return '/api'; // Production Vercel Route
+};
+
+const API_URL = import.meta.env?.VITE_API_URL || getApiUrl();
 
 const getAuthHeaders = async () => {
     const { data: { session } } = await supabase.auth.getSession();
-    if (!session) throw new Error("No active session");
+    if (!session) {
+        // Return empty headers if no session, or handle error depending on policy
+        return {};
+    }
     return {
         'Authorization': `Bearer ${session.access_token}`
     };
@@ -39,7 +52,7 @@ export const api = {
         const res = await fetch(`${API_URL}/upload`, {
             method: 'POST',
             headers: {
-                // FormData sets Content-Type automatically, do not set it manually here
+                // FormData sets Content-Type automatically
                 ...headers
             },
             body: formData

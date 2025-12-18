@@ -1,5 +1,6 @@
 
 import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, useMotionValue, useSpring } from 'framer-motion';
 import { useCursor } from '../context/CursorContext';
 import { useTheme } from '../context/ThemeContext';
@@ -18,8 +19,10 @@ export const Cursor: React.FC = () => {
   const ringY = useSpring(mouseY, springConfig);
 
   const [isVisible, setIsVisible] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
     const moveMouse = (e: MouseEvent) => {
       mouseX.set(e.clientX);
       mouseY.set(e.clientY);
@@ -30,7 +33,7 @@ export const Cursor: React.FC = () => {
     return () => window.removeEventListener('mousemove', moveMouse);
   }, [mouseX, mouseY, isVisible]);
 
-  if (typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches) {
+  if (!mounted || (typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches)) {
     return null;
   }
 
@@ -64,7 +67,7 @@ export const Cursor: React.FC = () => {
 
   const borderColor = theme === 'dark' ? '#a1a1aa' : '#52525b';
 
-  return (
+  return createPortal(
     <>
       {/* Primary Dot - Instant Follow - Z-Index 10001 to sit above Modal (9999) */}
       <motion.div
@@ -94,6 +97,7 @@ export const Cursor: React.FC = () => {
         animate={cursorType}
         initial="default"
       />
-    </>
+    </>,
+    document.body
   );
 };
