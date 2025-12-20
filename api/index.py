@@ -108,7 +108,7 @@ async def chat_endpoint(request: ChatRequest, authorization: str = Header(None))
     if not groq_client:
         raise HTTPException(status_code=500, detail="Groq Client not initialized")
 
-    # 1. Embed query
+    # 1. Embed query (Google GenAI)
     query_embedding = get_embedding(request.message)
     
     # 2. Search Vector DB
@@ -141,7 +141,7 @@ async def chat_endpoint(request: ChatRequest, authorization: str = Header(None))
             if source not in sources:
                 sources.append(source)
     
-    # 4. Generate Response with Groq
+    # 4. Generate Response with GROQ
     system_instruction = (
         "You are Cortex, an enterprise AI assistant. "
         "Answer the user query based ONLY on the provided Context below. "
@@ -154,16 +154,18 @@ async def chat_endpoint(request: ChatRequest, authorization: str = Header(None))
         {"role": "user", "content": f"Context Data:\n{context_text}\n\nUser Query: {request.message}"}
     ]
 
-    completion = groq_client.chat.completions.create(
-        messages=messages,
-        model="llama3-70b-8192", 
-        temperature=0.1,
-    )
-    
-    return {
-        "response": completion.choices[0].message.content,
-        "sources": sources
-    }
+    try:
+        completion = groq_client.chat.completions.create(
+            messages=messages,
+            model="llama3-70b-8192", 
+            temperature=0.1,
+        )
+        return {
+            "response": completion.choices[0].message.content,
+            "sources": sources
+        }
+    except Exception as e:
+         raise HTTPException(status_code=500, detail=f"Generation failed: {str(e)}")
 
 @app.post("/api/upload")
 async def upload_document(file: UploadFile = File(...), authorization: str = Header(None)):
@@ -199,7 +201,7 @@ async def upload_document(file: UploadFile = File(...), authorization: str = Hea
     try:
         doc_insert = supabase.table("documents").insert({
             "user_id": user_id,
-            "content": content, # Optional: storing full content
+            "content": content,
             "metadata": doc_metadata
         }).execute()
         
@@ -208,7 +210,7 @@ async def upload_document(file: UploadFile = File(...), authorization: str = Hea
             
         document_id = doc_insert.data[0]['id']
 
-        # 2. Chunk and Embed
+        # 2. Chunk and Embed (Google GenAI)
         chunks = chunk_text(content)
         
         for i, chunk in enumerate(chunks):
@@ -266,7 +268,7 @@ async def crawl_url(request: CrawlRequest, authorization: str = Header(None)):
             
         document_id = doc_insert.data[0]['id']
         
-        # 2. Chunk and Embed
+        # 2. Chunk and Embed (Google GenAI)
         text_chunks = chunk_text(content)
         
         for i, chunk in enumerate(text_chunks):

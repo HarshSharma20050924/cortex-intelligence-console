@@ -26,7 +26,7 @@ groq_client = Groq(api_key=GROQ_API_KEY)
 class RAGService:
     def __init__(self):
         self.embedding_model = "models/text-embedding-004"
-        self.llm_model = "llama-3.3-70b-versatile"
+        self.llm_model = "llama-3.3-70b-versatile" # Groq model
 
     def split_text(self, text: str, chunk_size: int = 1000, overlap: int = 200):
         """
@@ -135,11 +135,6 @@ class RAGService:
             
             title = soup.title.string if soup.title else url
             
-            # Reuse ingest_file logic but with URL metadata
-            # We can just call ingest_file with title as filename
-            # But the metadata type is different. Let's do it manually or adapt ingest_file.
-            # Adapting manually for clarity:
-            
             doc_data = {
                 "user_id": user_id,
                 "content": clean_text,
@@ -169,10 +164,10 @@ class RAGService:
 
     def chat(self, user_id: str, message: str):
         """
-        RAG Pipeline with Groq
+        RAG Pipeline with GROQ
         """
         
-        # 1. Embed Query
+        # 1. Embed Query (Google GenAI)
         query_embedding = self.get_embedding(
             message, 
             task_type="retrieval_query"
@@ -205,7 +200,7 @@ class RAGService:
                 if source not in sources:
                     sources.append({"title": source})
 
-        # 3. Generate Response
+        # 3. Generate Response (Groq)
         system_prompt = f"""You are Cortex, an advanced private intelligence assistant.
         Use the following Context to answer the User Query.
         
