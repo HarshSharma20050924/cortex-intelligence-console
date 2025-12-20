@@ -157,7 +157,7 @@ async def chat_endpoint(request: ChatRequest, authorization: str = Header(None))
     try:
         completion = groq_client.chat.completions.create(
             messages=messages,
-            model="llama-3.3-70b-versatile", 
+            model="llama-3.3-70b-versatile", # Updated model name
             temperature=0.1,
         )
         return {
@@ -234,7 +234,11 @@ async def crawl_url(request: CrawlRequest, authorization: str = Header(None)):
     user_id = get_user_id(authorization)
     
     try:
-        resp = requests.get(request.url, timeout=10)
+        # Added headers to avoid 403 Forbidden
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+        }
+        resp = requests.get(request.url, headers=headers, timeout=10)
         soup = BeautifulSoup(resp.content, 'html.parser')
         
         # Remove script and style elements
