@@ -157,7 +157,7 @@ async def chat_endpoint(request: ChatRequest, authorization: str = Header(None))
     try:
         completion = groq_client.chat.completions.create(
             messages=messages,
-            model="llama3-70b-8192", 
+            model="llama-3.3-70b-versatile", 
             temperature=0.1,
         )
         return {
