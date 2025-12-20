@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from supabase import create_client, Client
 import google.generativeai as genai
+from groq import Groq
 from bs4 import BeautifulSoup
 from pypdf import PdfReader
 
@@ -27,6 +28,7 @@ app.add_middleware(
 SUPABASE_URL = os.environ.get("SUPABASE_URL") or os.environ.get("VITE_SUPABASE_URL")
 SUPABASE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY") or os.environ.get("SUPABASE_ANON_KEY") or os.environ.get("VITE_SUPABASE_ANON_KEY")
 GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY")
+GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
 
 # Initialize Clients
 if not SUPABASE_URL or not SUPABASE_KEY:
@@ -40,9 +42,15 @@ if GOOGLE_API_KEY:
 else:
     print("Warning: Google API Key missing")
 
+if GROQ_API_KEY:
+    groq_client = Groq(api_key=GROQ_API_KEY)
+else:
+    print("Warning: Groq API Key missing")
+    groq_client = None
+
 # Pydantic Models
 class ChatRequest(BaseModel):
-    message: string
+    message: str
     conversation_id: Optional[str] = None
 
 class CrawlRequest(BaseModel):
@@ -52,12 +60,19 @@ class CrawlRequest(BaseModel):
 def get_embedding(text: str) -> List[float]:
     if not GOOGLE_API_KEY:
         raise HTTPException(status_code=500, detail="Server misconfiguration: No AI Key")
-    result = genai.embed_content(
-        model="models/text-embedding-004",
-        content=text,
-        task_type="retrieval_document"
-    )
-    return result['embedding']
+    # Clean text
+    clean_text = text.replace("\n", " ")
+    try:
+        result = genai.embed_content(
+            model="models/text-embedding-004",
+            content=clean_text,
+            task_type="retrieval_document"
+        )
+        return result['embedding']
+    except Exception as e:
+        print(f"Embedding failed: {e}")
+        # Re-raise to alert caller
+        raise HTTPException(status_code=500, detail=f"Embedding failed: {str(e)}")
 
 # Helper: Chunk Text
 def chunk_text(text: str, chunk_size: int = 1000, overlap: int = 100) -> List[str]:
@@ -80,7 +95,7 @@ def get_user_id(authorization: str = Header(None)):
             raise HTTPException(status_code=401, detail="Invalid Token")
         return user.user.id
     except Exception as e:
-        raise HTTPException(status_code=401, detail=str(e))
+        raise HTTPException(status_code=401, detail=f"Auth Error: {str(e)}")
 
 @app.get("/api/health")
 def health_check():
@@ -90,26 +105,27 @@ def health_check():
 async def chat_endpoint(request: ChatRequest, authorization: str = Header(None)):
     user_id = get_user_id(authorization)
     
+    if not groq_client:
+        raise HTTPException(status_code=500, detail="Groq Client not initialized")
+
     # 1. Embed query
     query_embedding = get_embedding(request.message)
     
-    # 2. Search Vector DB (RPC call to Supabase function)
-    # Assumes you have a postgres function 'match_documents'
+    # 2. Search Vector DB
+    matches = []
     try:
         rpc_params = {
             "query_embedding": query_embedding,
-            "match_threshold": 0.5, # Similarity threshold
+            "match_threshold": 0.5, 
             "match_count": 5,
             "filter_user_id": user_id 
         }
         
-        # Note: If you haven't set up the 'filter_user_id' in your postgres function, 
-        # you might need to adjust parameters or handle RLS implicitly.
         response = supabase.rpc("match_documents", rpc_params).execute()
         matches = response.data
     except Exception as e:
         print(f"Vector search failed: {e}")
-        matches = []
+        # Continue without context if vector search fails
 
     # 3. Construct Context
     context_text = ""
@@ -118,28 +134,34 @@ async def chat_endpoint(request: ChatRequest, authorization: str = Header(None))
     if matches:
         for match in matches:
             content = match.get('content', '')
-            meta = match.get('metadata', {})
-            source = meta.get('source', 'Unknown')
+            meta = match.get('source_metadata', {}) # From the joined query
+            source = meta.get('source', 'Unknown') if meta else 'Unknown'
+            
             context_text += f"---\nSource: {source}\nContent: {content}\n"
             if source not in sources:
                 sources.append(source)
     
-    # 4. Generate Response
-    system_instruction = "You are Cortex, an enterprise AI assistant. Answer the user query based ONLY on the provided Context below. If the answer is not in the context, say you don't know but offer general knowledge if permitted. Cite sources."
+    # 4. Generate Response with Groq
+    system_instruction = (
+        "You are Cortex, an enterprise AI assistant. "
+        "Answer the user query based ONLY on the provided Context below. "
+        "If the answer is not in the context, say you don't know but offer general knowledge if permitted. "
+        "Cite sources using [Source Name]."
+    )
     
-    prompt = f"""System: {system_instruction}
+    messages = [
+        {"role": "system", "content": system_instruction},
+        {"role": "user", "content": f"Context Data:\n{context_text}\n\nUser Query: {request.message}"}
+    ]
 
-Context Data:
-{context_text}
-
-User Query: {request.message}
-"""
-
-    model = genai.GenerativeModel('gemini-1.5-flash')
-    response = model.generate_content(prompt)
+    completion = groq_client.chat.completions.create(
+        messages=messages,
+        model="llama3-70b-8192", 
+        temperature=0.1,
+    )
     
     return {
-        "response": response.text,
+        "response": completion.choices[0].message.content,
         "sources": sources
     }
 
@@ -148,42 +170,62 @@ async def upload_document(file: UploadFile = File(...), authorization: str = Hea
     user_id = get_user_id(authorization)
     
     content = ""
-    file_type = "document"
     
     # Parse File
-    if file.filename.endswith(".pdf"):
-        pdf_reader = PdfReader(io.BytesIO(await file.read()))
-        for page in pdf_reader.pages:
-            content += page.extract_text() + "\n"
-    else:
-        # Assume text/md
-        content = (await file.read()).decode("utf-8")
+    try:
+        if file.filename.lower().endswith(".pdf"):
+            pdf_bytes = await file.read()
+            pdf_reader = PdfReader(io.BytesIO(pdf_bytes))
+            for page in pdf_reader.pages:
+                extract = page.extract_text()
+                if extract:
+                    content += extract + "\n"
+        else:
+            # Assume text/md
+            content = (await file.read()).decode("utf-8")
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to process file: {str(e)}")
         
     if not content.strip():
         raise HTTPException(status_code=400, detail="Empty document")
 
-    # Chunk and Embed
-    chunks = chunk_text(content)
+    # 1. Create Document Entry
+    doc_metadata = {
+        "source": file.filename,
+        "type": "document",
+        "size": f"{len(content)/1024:.1f}KB"
+    }
     
-    # Store in Supabase
-    # Note: In a real app, do this async/background task for speed
-    for i, chunk in enumerate(chunks):
-        embedding = get_embedding(chunk)
-        
-        data = {
+    try:
+        doc_insert = supabase.table("documents").insert({
             "user_id": user_id,
-            "content": chunk,
-            "embedding": embedding,
-            "metadata": {
-                "source": file.filename,
-                "type": "document",
-                "chunk_index": i,
-                "size": f"{len(content)/1024:.1f}KB"
-            }
-        }
-        supabase.table("documents").insert(data).execute()
+            "content": content, # Optional: storing full content
+            "metadata": doc_metadata
+        }).execute()
         
-    return {"status": "success", "chunks_processed": len(chunks), "filename": file.filename}
+        if not doc_insert.data:
+            raise HTTPException(status_code=500, detail="Failed to create document record")
+            
+        document_id = doc_insert.data[0]['id']
+
+        # 2. Chunk and Embed
+        chunks = chunk_text(content)
+        
+        for i, chunk in enumerate(chunks):
+            embedding = get_embedding(chunk)
+            
+            section_data = {
+                "document_id": document_id,
+                "content": chunk,
+                "embedding": embedding
+            }
+            supabase.table("document_sections").insert(section_data).execute()
+            
+        return {"status": "success", "chunks_processed": len(chunks), "filename": file.filename}
+        
+    except Exception as e:
+        print(f"Upload Error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/crawl")
 async def crawl_url(request: CrawlRequest, authorization: str = Header(None)):
@@ -204,23 +246,38 @@ async def crawl_url(request: CrawlRequest, authorization: str = Header(None)):
         chunks = (phrase.strip() for line in lines for phrase in line.split("  "))
         content = '\n'.join(chunk for chunk in chunks if chunk)
         
-        # Chunk and Embed
+        title = soup.title.string if soup.title else request.url
+
+        # 1. Create Document Entry
+        doc_metadata = {
+            "source": request.url,
+            "type": "url",
+            "title": title
+        }
+        
+        doc_insert = supabase.table("documents").insert({
+            "user_id": user_id,
+            "content": content,
+            "metadata": doc_metadata
+        }).execute()
+        
+        if not doc_insert.data:
+            raise Exception("Failed to create document record")
+            
+        document_id = doc_insert.data[0]['id']
+        
+        # 2. Chunk and Embed
         text_chunks = chunk_text(content)
         
         for i, chunk in enumerate(text_chunks):
             embedding = get_embedding(chunk)
             
-            data = {
-                "user_id": user_id,
+            section_data = {
+                "document_id": document_id,
                 "content": chunk,
-                "embedding": embedding,
-                "metadata": {
-                    "source": request.url,
-                    "type": "url",
-                    "title": soup.title.string if soup.title else request.url
-                }
+                "embedding": embedding
             }
-            supabase.table("documents").insert(data).execute()
+            supabase.table("document_sections").insert(section_data).execute()
 
         return {"status": "success", "url": request.url}
 

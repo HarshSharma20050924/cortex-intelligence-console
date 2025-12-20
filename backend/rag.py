@@ -66,38 +66,53 @@ class RAGService:
 
     def ingest_file(self, user_id: str, filename: str, content: str):
         """
-        Processes a file, chunks it, embeds it, and stores it in Supabase.
+        Processes a file.
+        1. create document record
+        2. chunk and embed
+        3. store sections
         """
         print(f"Ingesting file: {filename} for user: {user_id}")
         
-        chunks = self.split_text(content)
+        # 1. Create Document
+        doc_data = {
+            "user_id": user_id,
+            "content": content,
+            "metadata": {"source": filename, "type": "document"}
+        }
         
-        for i, chunk in enumerate(chunks):
-            # Generate embedding
-            # We add a small delay to avoid hitting strict per-second rate limits on free tier
-            time.sleep(0.5) 
+        try:
+            doc_res = supabase.table("documents").insert(doc_data).execute()
+            if not doc_res.data:
+                raise Exception("Failed to insert document record")
             
-            embedding = self.get_embedding(
-                chunk, 
-                task_type="retrieval_document",
-                title=filename
-            )
+            document_id = doc_res.data[0]['id']
+            
+            chunks = self.split_text(content)
+            
+            for i, chunk in enumerate(chunks):
+                # Generate embedding
+                time.sleep(0.5) # Rate limit handling
+                
+                embedding = self.get_embedding(
+                    chunk, 
+                    task_type="retrieval_document",
+                    title=filename
+                )
 
-            # Insert into Supabase
-            data = {
-                "user_id": user_id,
-                "content": chunk,
-                "metadata": {
-                    "source": filename, 
-                    "type": "document",
-                    "chunk_index": i
-                },
-                "embedding": embedding
-            }
+                # Insert Section
+                section_data = {
+                    "document_id": document_id,
+                    "content": chunk,
+                    "embedding": embedding
+                }
+                
+                supabase.table("document_sections").insert(section_data).execute()
+                
+            return {"status": "success", "chunks_processed": len(chunks)}
             
-            supabase.table("documents").insert(data).execute()
-            
-        return {"status": "success", "chunks_processed": len(chunks)}
+        except Exception as e:
+            print(f"Ingest Error: {e}")
+            raise e
 
     def ingest_url(self, user_id: str, url: str):
         """
@@ -120,7 +135,33 @@ class RAGService:
             
             title = soup.title.string if soup.title else url
             
-            return self.ingest_file(user_id, title, clean_text)
+            # Reuse ingest_file logic but with URL metadata
+            # We can just call ingest_file with title as filename
+            # But the metadata type is different. Let's do it manually or adapt ingest_file.
+            # Adapting manually for clarity:
+            
+            doc_data = {
+                "user_id": user_id,
+                "content": clean_text,
+                "metadata": {"source": url, "type": "url", "title": title}
+            }
+            
+            doc_res = supabase.table("documents").insert(doc_data).execute()
+            document_id = doc_res.data[0]['id']
+            
+            chunks = self.split_text(clean_text)
+            
+            for chunk in chunks:
+                time.sleep(0.5)
+                embedding = self.get_embedding(chunk, task_type="retrieval_document")
+                
+                supabase.table("document_sections").insert({
+                    "document_id": document_id,
+                    "content": chunk,
+                    "embedding": embedding
+                }).execute()
+            
+            return {"status": "success", "url": url}
             
         except Exception as e:
             print(f"Crawl failed: {e}")
@@ -128,10 +169,7 @@ class RAGService:
 
     def chat(self, user_id: str, message: str):
         """
-        RAG Pipeline:
-        1. Embed User Query
-        2. Search Vector DB
-        3. Synthesize Answer with Groq
+        RAG Pipeline with Groq
         """
         
         # 1. Embed Query
@@ -141,12 +179,11 @@ class RAGService:
         )
 
         # 2. Search Supabase (RPC call)
-        # Ensure you have the 'match_documents' function in Supabase
         response = supabase.rpc(
             "match_documents",
             {
                 "query_embedding": query_embedding,
-                "match_threshold": 0.5, # Lowered slightly for better recall
+                "match_threshold": 0.5,
                 "match_count": 5,
                 "filter_user_id": user_id
             }
@@ -159,17 +196,23 @@ class RAGService:
         
         if matches:
             for match in matches:
-                context_str += f"---\nSource: {match['metadata'].get('source', 'Unknown')}\nContent: {match['content']}\n"
-                sources.append({"title": match['metadata'].get('source', 'Unknown')})
+                # 'source_metadata' is returned by our updated RPC
+                meta = match.get('source_metadata', {})
+                source = meta.get('source', 'Unknown')
+                content = match.get('content', '')
+                
+                context_str += f"---\nSource: {source}\nContent: {content}\n"
+                if source not in sources:
+                    sources.append({"title": source})
 
         # 3. Generate Response
         system_prompt = f"""You are Cortex, an advanced private intelligence assistant.
         Use the following Context to answer the User Query.
         
         Rules:
-        1. Only use the provided Context. If the answer isn't there, say "I don't have that information in my knowledge base."
+        1. Only use the provided Context. If the answer isn't there, say "I don't have that information."
         2. Be professional, concise, and architectural in tone.
-        3. Cite your sources implicitly if possible.
+        3. Cite your sources.
         
         Context:
         {context_str}
@@ -181,7 +224,7 @@ class RAGService:
                 {"role": "user", "content": message}
             ],
             model=self.llm_model,
-            temperature=0.1, # Low temperature for factual accuracy
+            temperature=0.1,
         )
 
         return {
