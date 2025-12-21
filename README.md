@@ -199,5 +199,3 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 **Note**: This project is actively maintained. If you encounter any issues, please check the [GitHub Issues](https://github.com/HarshSharma20050924/cortex-intelligence-console/issues) page or create a new issue.
 
 ---
-
-I hope this comprehensive `README.md` accurately reflects your project and provides clear instructions for users. The key improvement is the detailed setup and configuration section, which was missing from the existing documentation.
