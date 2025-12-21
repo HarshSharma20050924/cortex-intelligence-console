@@ -1,101 +1,203 @@
-CORTEX INTELLIGENCE CONSOLE: TECHNICAL PROJECT PORTFOLIO
----
-1.0 EXECUTIVE PERSPECTIVE
-The Cortex Intelligence Console represents a strategic convergence of user interface design and artificial intelligence orchestration. In an era where model proliferation and data fragmentation challenge enterprise agility, this project serves as a centralized command center. It is designed to streamline the interaction between human operators and complex underlying AI architectures, providing a unified pane of glass for monitoring, configuration, and deployment of intelligence assets.
-By abstracting the complexities of raw API interactions into a cohesive visual environment, the Cortex Intelligence Console reduces cognitive load for developers and analysts alike. It transforms abstract data streams into actionable intelligence, adhering to the principles of high-observability and low-latency interaction required by modern AI-driven enterprises.
-2.0 SYSTEM ANALYSIS & CONTEXT
-The architecture of the Cortex Intelligence Console is built upon a modular, component-driven framework, likely leveraging modern JavaScript ecosystems to ensure reactivity and scalability.
-### 2.1 Architectural Paradigm
-The system operates on a Client-Server model, where the Console functions as the presentation layer (Frontend) interacting with a robust intelligence backend.
-*   Frontend Layer: Responsible for state management, real-time data visualization, and user input handling. It prioritizes a seamless User Experience (UX) with immediate feedback loops.
-*   Integration Layer: Acts as the middleware, securely handling API keys, request throttling, and response parsing from the underlying "Cortex" intelligence engine (or third-party LLM providers).
-### 2.2 Core Operational Context
-The console is engineered to address three critical operational needs:
-1.  Observability: Real-time tracking of model performance, token usage, and latency metrics.
-2.  Governance: Centralized management of configuration parameters, ensuring consistent model behavior across different environments.
-3.  Accessibility: Democratizing access to advanced AI capabilities through a no-code/low-code visual interface.
-3.0 TECHNICAL SPECIFICATIONS & METRICS
-The following specifications outline the projected technical foundation required to support the Cortex Intelligence Console's high-fidelity operations.
-### 3.1 Core Technology Stack
-Component
-Technology
-Strategic Justification
-**Primary Language**
-TypeScript / JavaScript
-Ensures type safety and maintainability across complex UI states.
-**Framework**
-Next.js / React
-Provides server-side rendering (SSR) for performance and SEO, plus a rich component ecosystem.
-**Styling Engine**
-Tailwind CSS
-Facilitates rapid UI development with a utility-first approach, ensuring design consistency.
-**State Management**
-Redux / Context API
-Manages global application state, essential for real-time data flow in intelligence dashboards.
-**Package Manager**
-npm / yarn
-Standardizes dependency management and script execution.
-### 3.2 Functional Capabilities Matrix
-Feature ID
-Feature Name
-Description
-Impact
-**F-01**
-**Real-time Dashboard**
-Live visualization of system metrics and AI responses.
-Reduces time-to-insight for operators.
-**F-02**
-**Model Configuration**
-UI controls for adjusting temperature, tokens, and model selection.
-Enables rapid prototyping and testing.
-**F-03**
-**Secure Auth**
-Role-based access control (RBAC) for sensitive data.
-Ensures enterprise-grade security compliance.
-**F-04**
-**Log Aggregation**
-History of prompts and completions for audit trails.
-Facilitates compliance and performance tuning.
-4.0 STRATEGIC IMPLEMENTATION ROADMAP
-To deploy the Cortex Intelligence Console effectively, the following implementation protocol is recommended. This roadmap assumes a standard Node.js environment.
-### 4.1 Environment Prerequisites
-Ensure the host machine is equipped with the following runtime environments:
-*   Node.js: Version 18.x or higher (LTS recommended).
-*   Git: For version control and repository cloning.
-*   API Credentials: Valid keys for the underlying Cortex or AI provider.
-### 4.2 Installation Protocol
-Execute the following commands to initialize the local development environment:
+
+#  Cortex Intelligence Console
+
+A high-performance, private knowledge synthesis engine built for enterprise environments. Cortex allows you to ingest proprietary data (PDFs, text files) and external web sources into a secure vector store, then query it using Retrieval-Augmented Generation (RAG) for accurate, citation-backed answers.
+
+![Architecture](https://img.shields.io/badge/Architecture-Serverless_RAG-blue) ![Frontend](https://img.shields.io/badge/Frontend-React_19/TypeScript-61dafb) ![Backend](https://img.shields.io/badge/Backend-Python_FastAPI-009688) ![Database](https://img.shields.io/badge/Database-Supabase_PostgreSQL-3ecf8e)
+
+**Live Demo**: [cortex-intelligence-console.vercel.app](https://cortex-intelligence-console.vercel.app)
+
+##  Features
+
+- **Private Knowledge Base**: Securely upload and embed your PDFs and text documents.
+- **Web Intelligence**: Crawl and ingest content from any public URL.
+- **Smart Chat Interface**: Ask questions in natural language and get answers grounded in your private data with source citations.
+- **Enterprise-Ready Architecture**: Built with serverless principles, JWT authentication, and full audit logging.
+- **Blazing Fast Inference**: Powered by Groq's LPU Inference Engine for near-instant responses.
+
+##  System Architecture
+
+Cortex is built on a modern, decoupled stack:
+
+| Layer | Technology | Purpose |
+|-------|------------|---------|
+| **Frontend** | React 19, TypeScript, Vite, Tailwind CSS | Responsive UI with "Dark Enterprise" design |
+| **Backend API** | Python (FastAPI) | Serverless functions hosted on Vercel |
+| **Database & Auth** | Supabase (PostgreSQL + Auth) | User data, chat history, and pgvector store |
+| **Embeddings** | Google Gemini (`text-embedding-004`) | State-of-the-art 768-dimension vectors |
+| **LLM** | Groq (`llama-3.3-70b-versatile`) | High-speed, open-source model inference |
+
+## Quick Start
+
+### Prerequisites
+
+- Node.js 18.x or higher
+- Python 3.9+
+- A [Supabase](https://supabase.com) account (free tier works)
+- API keys for [Google AI Studio](https://makersuite.google.com/app/apikey) and [Groq](https://console.groq.com/keys)
+
+### 1. Clone & Setup
+
 ```bash
-1. CLONE THE REPOSITORY SECURELY
+# Clone the repository
 git clone https://github.com/HarshSharma20050924/cortex-intelligence-console.git
-2. NAVIGATE TO THE PROJECT DIRECTORY
 cd cortex-intelligence-console
-3. INSTALL DEPENDENCIES VIA NPM
+
+# Install frontend dependencies
 npm install
-4. CONFIGURE ENVIRONMENT VARIABLES
-(CREATE A .ENV.LOCAL FILE BASED ON THE PROVIDED EXAMPLE)
-cp .env.example .env.local
+
+# Install Python backend dependencies
+pip install -r requirements.txt
 ```
-### 4.3 Configuration & Deployment
-1.  Environment Configuration:
-    Open the `.env.local` file and populate the necessary API keys and endpoint URLs.
-    ```env
-    NEXT_PUBLIC_API_ENDPOINT="https://api.cortex-intelligence.com/v1"
-    API_KEY="sk-..."
-    ```
-2.  Development Launch:
-    Initiate the local server to verify system integrity.
-    ```bash
-    npm run dev
-    ```
-    *Access the console at `http://localhost:3000`.*
-3.  Production Build:
-    For enterprise deployment, generate an optimized build artifact.
-    ```bash
-    npm run build
-    npm start
-    ```
-5.0 CONCLUSION & VALIDATION
-The Cortex Intelligence Console stands as a testament to the necessity of structured interfaces in the chaotic landscape of artificial intelligence. By wrapping complex computational logic in a refined, user-centric console, the project bridges the gap between raw algorithmic potential and practical business application.
-Validation Note:
-*This portfolio document was synthesized based on the architectural patterns inherent to enterprise AI dashboards and the specific repository metadata provided. While the specific source code was not indexed at the time of analysis, the outlined specifications reflect the industry-standard best practices for a project of this nomenclature and scope.*
+
+### 2. Database Setup (Supabase)
+
+1. Create a new Supabase project
+2. Enable the `pgvector` extension in the SQL editor:
+   ```sql
+   CREATE EXTENSION IF NOT EXISTS vector;
+   ```
+3. Run the schema setup from `backend/schema.sql` to create the necessary tables and the `match_documents` function.
+4. Copy your Supabase URL and keys from Project Settings → API.
+
+### 3. Environment Configuration
+
+Create a `.env` file in the project root with the following variables:
+
+```env
+# Supabase Configuration
+SUPABASE_URL=https://your-project-ref.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+VITE_SUPABASE_URL=https://your-project-ref.supabase.co
+VITE_SUPABASE_ANON_KEY=your-anon-key
+
+# AI Service Keys
+API_KEY=your-google-gemini-api-key
+GROQ_API_KEY=your-groq-api-key
+```
+
+### 4. Local Development
+
+```bash
+# Start the frontend development server (Vite)
+npm run dev
+
+# In a separate terminal, start the backend server
+cd backend
+uvicorn main:app --reload --port 8000
+```
+
+The application will be available at `http://localhost:3000`.
+
+### 5. Deploy to Production
+
+Cortex is configured for seamless deployment on Vercel:
+
+```bash
+# Build for production
+npm run build
+
+# Deploy to Vercel
+vercel --prod
+```
+
+The `vercel.json` file already contains the proper routing configuration to handle both frontend and backend API routes.
+
+## 🗄️ Database Schema
+
+The system uses four main tables in Supabase:
+
+1. **`documents`**: Stores text chunks, metadata, and vector embeddings
+2. **`conversations`**: Tracks chat session metadata
+3. **`messages`**: Stores all chat messages with role and content
+4. **`audit_logs`**: Records all user actions for compliance
+
+Key PostgreSQL function for vector search:
+```sql
+-- The match_documents function enables semantic search
+SELECT * FROM match_documents(
+  query_embedding => '[0.1, 0.2, ...]'::vector(768),
+  match_threshold => 0.7,
+  match_count => 5
+);
+```
+
+##  API Reference
+
+### `POST /api/chat`
+**Purpose**: Main RAG query endpoint
+**Payload**: `{"message": "Your question here"}`
+**Response**:
+```json
+{
+  "response": "Answer based on your documents...",
+  "sources": ["document.pdf", "https://example.com"]
+}
+```
+
+### `POST /api/upload`
+**Purpose**: Process and embed uploaded documents
+**Payload**: `multipart/form-data` with file
+**Response**: `{"status": "success", "chunks": 42}`
+
+### `POST /api/crawl`
+**Purpose**: Ingest content from a URL
+**Payload**: `{"url": "https://example.com"}`
+**Response**: `{"status": "success", "chunks": 15}`
+
+##  RAG Pipeline Details
+
+When you ask a question, Cortex:
+
+1. **Embeds your query** using Google's `text-embedding-004`
+2. **Performs similarity search** in the vector database for the top 5 relevant chunks
+3. **Constructs a context-aware prompt** with the retrieved information
+4. **Generates a response** using Groq's Llama 3.3 (70B) with citations
+5. **Logs the interaction** for audit and improvement
+
+## Project Structure
+
+```
+cortex-intelligence-console/
+├── api/                    # Vercel serverless API routes
+├── backend/               # Python FastAPI backend
+├── components/            # React components
+│   ├── ChatInterface.tsx  # Main chat component
+│   ├── KnowledgePanel.tsx # Document management
+│   └── Cursor.tsx         # Custom interactive cursor
+├── lib/                   # Utility functions
+├── public/                # Static assets
+├── .github/workflows/     # CI/CD configuration
+├── requirements.txt       # Python dependencies
+├── vercel.json           # Deployment configuration
+└── vite.config.ts        # Build configuration
+```
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## 🙏 Acknowledgments
+
+- [Google Gemini](https://deepmind.google/technologies/gemini/) for embedding capabilities
+- [Groq](https://groq.com/) for ultra-fast LLM inference
+- [Supabase](https://supabase.com/) for the complete backend platform
+- [Vercel](https://vercel.com/) for seamless deployment
+
+---
+
+**Note**: This project is actively maintained. If you encounter any issues, please check the [GitHub Issues](https://github.com/HarshSharma20050924/cortex-intelligence-console/issues) page or create a new issue.
+
+---
+
+I hope this comprehensive `README.md` accurately reflects your project and provides clear instructions for users. The key improvement is the detailed setup and configuration section, which was missing from the existing documentation.
