@@ -1,6 +1,6 @@
-
 import React, { useState, useEffect } from 'react';
 import { Cursor } from './components/Cursor';
+import { SplashReveal } from './components/SplashReveal';
 import { KnowledgePanel } from './components/KnowledgePanel';
 import { ChatInterface } from './components/ChatInterface';
 import { Settings } from './components/Settings';
@@ -16,14 +16,18 @@ const AppContent: React.FC = () => {
   const { session, loading, signOut } = useAuth();
   const [view, setView] = useState<ViewState>('landing');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [splashComplete, setSplashComplete] = useState(false);
 
   useEffect(() => {
-    if (session) {
-        setView('dashboard');
-    } else {
-        setView('landing');
+    // Only transition view if splash is done
+    if (splashComplete) {
+        if (session) {
+            setView('dashboard');
+        } else {
+            setView('landing');
+        }
     }
-  }, [session]);
+  }, [session, splashComplete]);
 
   const handleSignOut = async () => {
       await signOut();
@@ -33,8 +37,8 @@ const AppContent: React.FC = () => {
   // Simple Sidebar Component
   const Sidebar = () => (
     <div className="w-16 h-full bg-zinc-50 dark:bg-zinc-950 border-r border-zinc-200 dark:border-zinc-800 flex flex-col items-center py-6 gap-6 z-40">
-        <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center mb-4 shadow-lg shadow-indigo-500/30">
-            <Database className="w-4 h-4 text-white" />
+        <div className="w-8 h-8 rounded-lg bg-zinc-900 dark:bg-white flex items-center justify-center mb-4 shadow-lg shadow-indigo-500/10 border border-zinc-800">
+            <img src="/logo.svg" className="w-5 h-5" alt="Cortex" />
         </div>
         
         <button 
@@ -63,24 +67,32 @@ const AppContent: React.FC = () => {
   );
 
   if (loading) {
-      return <div className="h-screen w-screen bg-zinc-950 flex items-center justify-center"><div className="w-8 h-8 rounded-full border-2 border-indigo-600 border-t-transparent animate-spin" /></div>;
+      return null; // Let splash handle initial load state visually
   }
 
   return (
     <div className="h-screen w-screen bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-200 flex overflow-hidden relative font-sans transition-colors duration-500">
       <Cursor />
 
+      <AnimatePresence>
+        {!splashComplete && (
+            <SplashReveal onComplete={() => setSplashComplete(true)} />
+        )}
+      </AnimatePresence>
+
       <AnimatePresence mode="wait">
         {!session ? (
-            <motion.div 
-                key="landing"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0, y: -50 }}
-                className="w-full h-full z-50"
-            >
-                <LandingPage onLogin={() => {}} /> 
-            </motion.div>
+            splashComplete && (
+                <motion.div 
+                    key="landing"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0, y: -50 }}
+                    className="w-full h-full z-50"
+                >
+                    <LandingPage onLogin={() => {}} /> 
+                </motion.div>
+            )
         ) : (
             <motion.div 
                 key="app"

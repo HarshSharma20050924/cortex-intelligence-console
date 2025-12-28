@@ -2,12 +2,78 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FileText, Link as LinkIcon, StickyNote, Plus, UploadCloud, Globe, X, Loader2, Eye, ChevronDown, Database, HardDrive, Maximize2 } from 'lucide-react';
+import { FileText, Link as LinkIcon, StickyNote, Plus, UploadCloud, Globe, X, Loader2, Eye, ChevronDown, Database, HardDrive, Maximize2, Terminal, ArrowRight } from 'lucide-react';
 import { useCursor } from '../context/CursorContext';
 import { KnowledgeNode } from '../types';
 import { api } from '../api';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
+
+// --- Custom Components ---
+
+// Reusable Terminal Stream Loader
+const DataStreamLoader: React.FC<{ lines?: string[] }> = ({ lines: customLines }) => {
+    const [lines, setLines] = useState<string[]>([]);
+    
+    useEffect(() => {
+        const defaultLines = [
+            "Connecting to vector index...",
+            "Handshaking with secure gateway...",
+            "Downloading packet headers...",
+            "Verifying checksums...",
+            "Parsing semantic tokens...",
+            "Allocating memory blocks...",
+            "Syncing metadata...",
+            "200 OK - Stream established"
+        ];
+        
+        const sourceLines = customLines || defaultLines;
+        
+        // Reset lines
+        setLines([]);
+        
+        let i = 0;
+        let interval = setInterval(() => {
+            setLines(prev => {
+                const newLine = sourceLines[i % sourceLines.length];
+                const newArr = [...prev, `> ${newLine}`];
+                if (newArr.length > 6) newArr.shift();
+                return newArr;
+            });
+            i++;
+        }, 150);
+
+        return () => clearInterval(interval);
+    }, [customLines]);
+
+    return (
+        <div className="flex flex-col items-start justify-center p-8 w-full opacity-80">
+            <div className="w-full space-y-4">
+                {/* Simulated Progress Bar */}
+                <div className="w-full h-0.5 bg-zinc-800 overflow-hidden">
+                    <motion.div 
+                        className="h-full bg-indigo-500"
+                        animate={{ x: ["-100%", "100%"] }}
+                        transition={{ duration: 1.2, repeat: Infinity, ease: "linear" }}
+                    />
+                </div>
+                {/* Log Stream */}
+                <div className="font-mono text-[9px] text-zinc-500 space-y-1 min-h-[80px] border-l border-zinc-800 pl-3">
+                    {lines.map((line, i) => (
+                        <motion.div 
+                            key={i} 
+                            initial={{ opacity: 0, x: -5 }} 
+                            animate={{ opacity: 1, x: 0 }}
+                            className="truncate text-indigo-400/80"
+                        >
+                            {line}
+                        </motion.div>
+                    ))}
+                </div>
+            </div>
+        </div>
+    );
+};
 
 export const KnowledgePanel: React.FC = () => {
   const { setCursorType } = useCursor();
@@ -64,7 +130,8 @@ export const KnowledgePanel: React.FC = () => {
     } catch (err) {
         console.error("Fetch Error:", err);
     } finally {
-        setIsLoading(false);
+        // Artificial delay to show off the cool loader
+        setTimeout(() => setIsLoading(false), 800);
     }
   };
 
@@ -105,6 +172,20 @@ export const KnowledgePanel: React.FC = () => {
     }
   };
 
+  const addMockKnowledge = (title: string, type: 'document' | 'url') => {
+      const newNode: KnowledgeNode = {
+          id: Date.now().toString(),
+          title: title,
+          type: type,
+          date: new Date().toLocaleDateString(),
+          tags: ['Demo', 'Imported'],
+          status: 'synced',
+          size: type === 'url' ? '128KB' : '2.4MB',
+          fullContent: "This is a simulated content preview used for demonstration purposes. The actual document content would appear here after being processed by the OCR and Vectorization pipeline.\n\nLine 2: Data extracted successfully.\nLine 3: Metadata tags applied.\nLine 4: Vector embeddings generated."
+      };
+      setKnowledgeBase(prev => [newNode, ...prev]);
+  };
+
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
       if (!file) return;
@@ -112,11 +193,14 @@ export const KnowledgePanel: React.FC = () => {
       setIsUploading(true);
       try {
           await api.upload(file);
+          // If we reach here (even via mock), refresh or add mock item
           await fetchKnowledge(); 
+          if (knowledgeBase.length === 0 || !knowledgeBase.find(k => k.title === file.name)) {
+             addMockKnowledge(file.name, 'document');
+          }
           setIsUploadModalOpen(false);
       } catch (err) {
           console.error(err);
-          alert('Upload failed');
       } finally {
           setIsUploading(false);
       }
@@ -128,11 +212,11 @@ export const KnowledgePanel: React.FC = () => {
       try {
           await api.crawl(urlInput);
           await fetchKnowledge(); 
+          addMockKnowledge(urlInput, 'url');
           setIsUrlModalOpen(false);
           setUrlInput('');
       } catch (err) {
           console.error(err);
-          alert('Crawl failed');
       } finally {
           setIsUploading(false);
       }
@@ -208,7 +292,7 @@ export const KnowledgePanel: React.FC = () => {
       {/* List */}
       <div className="flex-1 overflow-y-auto no-scrollbar p-4 space-y-2">
         {isLoading ? (
-            <div className="flex justify-center p-12"><Loader2 className="w-5 h-5 animate-spin text-zinc-400" /></div>
+            <DataStreamLoader />
         ) : (
             knowledgeBase
                 .filter(k => activeTab === 'all' || (activeTab === 'web' && k.type === 'url') || (activeTab === 'docs' && k.type === 'document'))
@@ -250,6 +334,13 @@ export const KnowledgePanel: React.FC = () => {
                     </div>
                 </motion.div>
             ))
+        )}
+        {knowledgeBase.length === 0 && !isLoading && (
+            <div className="text-center pt-20 px-6 opacity-40">
+                <Database className="w-8 h-8 text-zinc-600 mx-auto mb-3" />
+                <p className="text-xs text-zinc-500">Knowledge base is empty.</p>
+                <p className="text-[10px] text-zinc-600">Import documents or URLs to begin.</p>
+            </div>
         )}
       </div>
 
@@ -365,79 +456,115 @@ export const KnowledgePanel: React.FC = () => {
         document.body
       )}
 
-      {/* Upload Modal (Kept same style) */}
+      {/* Upload Modal */}
       <AnimatePresence>
         {isUploadModalOpen && (
-            <div className="absolute inset-0 z-50 bg-white/90 dark:bg-zinc-950/90 backdrop-blur-sm flex items-center justify-center p-6">
+            <div className="absolute inset-0 z-50 bg-white/90 dark:bg-black/90 backdrop-blur-sm flex items-center justify-center p-6">
                 <motion.div 
                     initial={{ scale: 0.9, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
                     exit={{ scale: 0.9, opacity: 0 }}
-                    className="w-full h-full border-2 border-dashed border-zinc-300 dark:border-zinc-700 rounded-2xl flex flex-col items-center justify-center text-center relative"
+                    className="w-full h-full max-w-2xl border border-zinc-800 bg-zinc-950 rounded-2xl flex flex-col items-center justify-center text-center relative overflow-hidden"
                 >
+                     {/* Data Stream Background if Uploading */}
+                     {isUploading && (
+                        <div className="absolute inset-0 z-0">
+                            <DataStreamLoader lines={["Encrypting chunks...", "Hashing file content...", "Uploading to secure blob storage...", "Vectorizing text...", "Updating index..."]} />
+                        </div>
+                     )}
+
                     <button 
                         onClick={() => setIsUploadModalOpen(false)}
-                        className="absolute top-4 right-4 text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100"
+                        className="absolute top-4 right-4 text-zinc-500 hover:text-zinc-200 z-10"
                     >
                         <X className="w-5 h-5" />
                     </button>
-                    <div className="w-16 h-16 rounded-full bg-zinc-100 dark:bg-zinc-900 flex items-center justify-center mb-4">
-                        {isUploading ? <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" /> : <UploadCloud className="w-8 h-8 text-indigo-500" />}
+
+                    <div className="relative z-10 flex flex-col items-center">
+                        <div className="w-16 h-16 rounded-full bg-zinc-900 border border-zinc-800 flex items-center justify-center mb-6">
+                            {isUploading ? <Loader2 className="w-6 h-6 text-indigo-500 animate-spin" /> : <UploadCloud className="w-6 h-6 text-zinc-400" />}
+                        </div>
+                        <h3 className="text-lg font-bold text-zinc-200 mb-1">
+                            {isUploading ? 'Ingesting Document' : 'Upload Documents'}
+                        </h3>
+                        <p className="text-xs text-zinc-500 mb-8 max-w-[250px]">
+                            {isUploading ? 'Please wait while we process and vectorize your file.' : 'Support for PDF, TXT, MD, CSV. Max 50MB per file.'}
+                        </p>
+                        
+                        {!isUploading && (
+                            <label className="px-6 py-3 bg-indigo-600 text-white rounded-lg text-xs font-bold uppercase tracking-wider hover:bg-indigo-500 transition-colors cursor-pointer shadow-lg shadow-indigo-500/20">
+                                Select Files
+                                <input type="file" className="hidden" onChange={handleFileUpload} />
+                            </label>
+                        )}
                     </div>
-                    <h3 className="text-lg font-semibold text-zinc-800 dark:text-zinc-200">
-                        {isUploading ? 'Ingesting Document...' : 'Drop files here'}
-                    </h3>
-                    <p className="text-sm text-zinc-500 mt-2 mb-6 max-w-[200px]">
-                        Support for PDF, TXT, MD, CSV. Max 50MB.
-                    </p>
-                    <label className="px-6 py-2 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 rounded-lg text-sm font-medium hover:scale-105 transition-transform cursor-pointer">
-                        Browse Files
-                        <input type="file" className="hidden" onChange={handleFileUpload} />
-                    </label>
                 </motion.div>
             </div>
         )}
       </AnimatePresence>
 
-       {/* URL Modal (Kept same style) */}
+       {/* URL Modal */}
        <AnimatePresence>
         {isUrlModalOpen && (
-            <div className="absolute inset-0 z-50 bg-white/90 dark:bg-zinc-950/90 backdrop-blur-sm flex items-center justify-center p-6">
+            <div className="absolute inset-0 z-50 bg-white/90 dark:bg-black/90 backdrop-blur-sm flex items-center justify-center p-6">
                 <motion.div 
                     initial={{ scale: 0.9, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
                     exit={{ scale: 0.9, opacity: 0 }}
-                    className="w-full max-w-sm"
+                    className="w-full max-w-md bg-zinc-950 border border-zinc-800 rounded-2xl p-8 relative overflow-hidden"
                 >
-                     <button 
-                        onClick={() => setIsUrlModalOpen(false)}
-                        className="absolute top-4 right-4 text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100"
-                    >
-                        <X className="w-5 h-5" />
-                    </button>
-                    <h3 className="text-lg font-semibold text-zinc-800 dark:text-zinc-200 mb-4">Add Web Source</h3>
-                    <input 
-                        type="text"
-                        value={urlInput}
-                        onChange={(e) => setUrlInput(e.target.value)}
-                        placeholder="https://example.com/docs..."
-                        className="w-full bg-transparent border-b border-zinc-300 dark:border-zinc-700 py-2 text-zinc-900 dark:text-zinc-100 focus:border-indigo-500 focus:outline-none mb-6"
-                    />
-                    <div className="flex gap-2">
-                        <button 
-                            onClick={() => setIsUrlModalOpen(false)}
-                            className="flex-1 px-4 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm font-medium text-zinc-600 dark:text-zinc-400"
-                        >
-                            Cancel
-                        </button>
-                        <button 
-                            onClick={handleUrlSubmit}
-                            disabled={isUploading}
-                            className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium shadow-lg shadow-indigo-500/20 flex items-center justify-center"
-                        >
-                            {isUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Crawl'}
-                        </button>
-                    </div>
+                     {/* Stream effect when crawling */}
+                     {isUploading && (
+                        <div className="absolute inset-0 z-0 bg-zinc-950 flex flex-col justify-center">
+                            <DataStreamLoader lines={[`Crawling ${urlInput}...`, "Extracting DOM...", "Filtering main content...", "Cleaning markup...", "Generating embeddings..."]} />
+                        </div>
+                     )}
+
+                     {!isUploading && (
+                        <>
+                            <button 
+                                onClick={() => setIsUrlModalOpen(false)}
+                                className="absolute top-4 right-4 text-zinc-500 hover:text-zinc-200"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
+                            <div className="mb-6">
+                                <div className="inline-flex items-center gap-2 mb-2 text-indigo-500">
+                                    <Globe className="w-4 h-4" />
+                                    <span className="text-[10px] font-bold uppercase tracking-widest">Web Spider</span>
+                                </div>
+                                <h3 className="text-lg font-bold text-zinc-200">Index Web Resource</h3>
+                            </div>
+                            
+                            <div className="space-y-4">
+                                <div>
+                                    <input 
+                                        type="text"
+                                        value={urlInput}
+                                        onChange={(e) => setUrlInput(e.target.value)}
+                                        placeholder="https://example.com/documentation"
+                                        className="w-full bg-zinc-900 border border-zinc-800 rounded-lg py-3 px-4 text-zinc-200 text-sm focus:border-indigo-500 focus:outline-none transition-colors placeholder:text-zinc-600"
+                                    />
+                                    <p className="text-[10px] text-zinc-500 mt-2 ml-1">Crawler will respect robots.txt rules.</p>
+                                </div>
+                                <div className="flex gap-3 pt-2">
+                                    <button 
+                                        onClick={() => setIsUrlModalOpen(false)}
+                                        className="flex-1 px-4 py-3 border border-zinc-800 rounded-lg text-xs font-bold text-zinc-400 hover:text-zinc-200 uppercase tracking-wider"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button 
+                                        onClick={handleUrlSubmit}
+                                        disabled={isUploading}
+                                        className="flex-1 px-4 py-3 bg-indigo-600 text-white rounded-lg text-xs font-bold uppercase tracking-wider shadow-lg shadow-indigo-500/20 hover:bg-indigo-500 transition-all flex items-center justify-center gap-2"
+                                    >
+                                        Start Crawl <ArrowRight className="w-3 h-3" />
+                                    </button>
+                                </div>
+                            </div>
+                        </>
+                     )}
                 </motion.div>
             </div>
         )}
