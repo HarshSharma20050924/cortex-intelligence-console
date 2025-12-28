@@ -6,7 +6,7 @@
       <stop offset="100%" style="stop-color:#a855f7;stop-opacity:1" />
     </linearGradient>
     <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
-      <feGaussianBlur stdDeviation="2.5" result="coloredBlur"/>
+      <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
       <feMerge>
         <feMergeNode in="coloredBlur"/>
         <feMergeNode in="SourceGraphic"/>
@@ -15,24 +15,24 @@
   </defs>
   
   <g filter="url(#glow)">
-    <!-- Outer Hexagon Shell -->
-    <path d="M50 10 L85 30 L85 70 L50 90 L15 70 L15 30 Z" stroke="url(#neuralGrad)" stroke-width="1.5" fill="none" stroke-opacity="0.6"/>
+    <!-- Outer Hexagon Shell - Thicker stroke for favicon visibility -->
+    <path d="M50 8 L88 30 L88 70 L50 92 L12 70 L12 30 Z" stroke="url(#neuralGrad)" stroke-width="4" fill="none" stroke-opacity="0.9"/>
     
-    <!-- Inner Neural Network -->
-    <path d="M50 25 L50 40 M50 60 L50 75" stroke="#a855f7" stroke-width="1.5" stroke-linecap="round"/>
-    <path d="M30 40 L42 47 M58 47 L70 40" stroke="#6366f1" stroke-width="1.5" stroke-linecap="round"/>
-    <path d="M30 60 L42 53 M58 53 L70 60" stroke="#6366f1" stroke-width="1.5" stroke-linecap="round"/>
+    <!-- Inner Neural Network - Simplified and bolder -->
+    <path d="M50 25 L50 42 M50 58 L50 75" stroke="#a855f7" stroke-width="3" stroke-linecap="round"/>
+    <path d="M28 38 L42 46 M58 46 L72 38" stroke="#6366f1" stroke-width="3" stroke-linecap="round"/>
+    <path d="M28 62 L42 54 M58 54 L72 62" stroke="#6366f1" stroke-width="3" stroke-linecap="round"/>
     
     <!-- Central Processor -->
-    <circle cx="50" cy="50" r="8" fill="#1e1b4b" stroke="url(#neuralGrad)" stroke-width="2"/>
-    <circle cx="50" cy="50" r="3" fill="#fff"/>
+    <circle cx="50" cy="50" r="10" fill="#1e1b4b" stroke="url(#neuralGrad)" stroke-width="3"/>
+    <circle cx="50" cy="50" r="4" fill="#fff"/>
 
-    <!-- Data Nodes -->
-    <circle cx="50" cy="10" r="2" fill="#a855f7"/>
-    <circle cx="85" cy="30" r="2" fill="#6366f1"/>
-    <circle cx="85" cy="70" r="2" fill="#a855f7"/>
-    <circle cx="50" cy="90" r="2" fill="#6366f1"/>
-    <circle cx="15" cy="70" r="2" fill="#a855f7"/>
-    <circle cx="15" cy="30" r="2" fill="#6366f1"/>
+    <!-- Data Nodes - Larger for visibility -->
+    <circle cx="50" cy="8" r="3" fill="#a855f7"/>
+    <circle cx="88" cy="30" r="3" fill="#6366f1"/>
+    <circle cx="88" cy="70" r="3" fill="#a855f7"/>
+    <circle cx="50" cy="92" r="3" fill="#6366f1"/>
+    <circle cx="12" cy="70" r="3" fill="#a855f7"/>
+    <circle cx="12" cy="30" r="3" fill="#6366f1"/>
   </g>
 </svg>
